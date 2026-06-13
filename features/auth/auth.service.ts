@@ -41,15 +41,15 @@ export async function registerUserService(data: RegisterInput) {
     sessionVersion: user.sessionVersion,
   });
 
-  return {
-    user: {
-      userId: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    },
-    message: "Account created successfully",
-  };
+return {
+  user: {
+    userId: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    role: user.role,
+  },
+  message: "Account created successfully. Please login to continue.",
+};
 }
 
 export async function loginUserService(data: LoginInput) {
@@ -73,11 +73,6 @@ export async function loginUserService(data: LoginInput) {
 
   user.lastLoginAt = new Date();
   await user.save();
-
-  await createSession({
-    userId: user._id.toString(),
-    sessionVersion: user.sessionVersion,
-  });
 
   return {
     user: {

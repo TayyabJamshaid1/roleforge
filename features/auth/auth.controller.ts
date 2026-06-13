@@ -1,3 +1,4 @@
+import { deleteCurrentSession } from "@/lib/session";
 import {
   loginSchema,
   registerSchema,
@@ -34,4 +35,11 @@ export async function loginController(
     );
 
   return result;
+}
+export async function logoutController() {
+  await deleteCurrentSession();
+
+  return {
+    message: "Logout successful",
+  };
 }
