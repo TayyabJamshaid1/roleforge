@@ -1,12 +1,13 @@
 import { connectToDatabase } from "@/lib/db";
-import { hashPassword, comparePassword } from "@/lib/password";
+import { createSession } from "@/lib/session";
+import { comparePassword, hashPassword } from "@/lib/password";
 import User from "@/models/User";
 
 type RegisterInput = {
   name: string;
   email: string;
   password: string;
-  role?: "user" | "manager" | "admin";
+  role: "user" | "manager";
 };
 
 type LoginInput = {
@@ -22,37 +23,46 @@ export async function registerUserService(data: RegisterInput) {
   if (existingUser) {
     throw new Error("User already exists with this email");
   }
-  if (data.role === "admin") {
-    throw new Error("Admin registration is not allowed");
-  }
+
   const hashedPassword = await hashPassword(data.password);
 
   const user = await User.create({
     name: data.name,
     email: data.email,
     password: hashedPassword,
-
     role: data.role,
-
     authProvider: "credentials",
     isEmailVerified: false,
+    isActive: true,
+  });
+
+  await createSession({
+    userId: user._id.toString(),
+    sessionVersion: user.sessionVersion,
   });
 
   return {
-    _id: user._id.toString(),
-    name: user.name,
-    email: user.email,
-    role: user.role,
+    user: {
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+    message: "Account created successfully",
   };
 }
 
 export async function loginUserService(data: LoginInput) {
   await connectToDatabase();
 
-  const user = await User.findOne({ email: data.email }).select("+password");
+  const user = await User.findOne({ email: data.email }).select("+password"); // Include password for verification
 
   if (!user || !user.password) {
     throw new Error("Invalid email or password");
+  }
+
+  if (!user.isActive) {
+    throw new Error("Your account has been disabled");
   }
 
   const isPasswordValid = await comparePassword(data.password, user.password);
@@ -61,11 +71,21 @@ export async function loginUserService(data: LoginInput) {
     throw new Error("Invalid email or password");
   }
 
-  return {
-    _id: user._id.toString(),
-    name: user.name,
-    email: user.email,
-    role: user.role,
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  await createSession({
+    userId: user._id.toString(),
     sessionVersion: user.sessionVersion,
+  });
+
+  return {
+    user: {
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+    message: "Login successful",
   };
 }
