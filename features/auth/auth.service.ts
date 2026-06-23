@@ -1,8 +1,9 @@
 import { connectToDatabase } from "@/lib/db";
-import { createSession } from "@/lib/session";
+import { createSession, deleteAllUserSessions } from "@/lib/session";
 import { comparePassword, hashPassword } from "@/lib/password";
 import User from "@/models/User";
-
+import { generateResetToken, hashToken } from "@/lib/token";
+import { sendEmail } from "@/lib/email";
 type RegisterInput = {
   name: string;
   email: string;
@@ -82,5 +83,112 @@ export async function loginUserService(data: LoginInput) {
       role: user.role,
     },
     message: "Login successful",
+  };
+}
+export async function forgotPasswordService(
+  email: string
+) {
+  await connectToDatabase();
+
+  const user = await User.findOne({
+    email,
+  });
+
+  /**
+   * Never reveal whether
+   * email exists or not.
+   */
+  if (!user) {
+    return {
+      message:
+        "If an account exists, reset instructions have been sent.",
+    };
+  }
+
+  // Raw token
+  const resetToken =
+    generateResetToken();
+
+  // Hash before storing
+  const hashedToken =
+    hashToken(resetToken);
+
+  user.passwordResetToken =
+    hashedToken;
+
+  user.passwordResetExpires =
+    new Date(
+      Date.now() + 15 * 60 * 1000
+    ); // 15 mins
+
+  await user.save();
+
+  const resetUrl =
+
+`${process.env.APP_URL}/reset-password?token=${resetToken}`;
+
+  await sendEmail({
+    to: user.email,
+
+    subject: "Reset Your Password",
+
+    html: `
+      <h2>Reset Password</h2>
+
+      <p>
+      Click below to reset your password:
+      </p>
+
+      <a href="${resetUrl}">
+        Reset Password
+      </a>
+
+      <p>
+      This link expires in 15 minutes.
+      </p>
+    `,
+  });
+
+  return {
+    message:
+      "If an account exists, reset instructions have been sent.",
+  };
+}
+type ResetPasswordInput = {
+  token: string;
+  password: string;
+};
+
+export async function resetPasswordService(data: ResetPasswordInput) {
+  await connectToDatabase();
+
+  const hashedToken = hashToken(data.token);
+
+  const user = await User.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: {
+      $gt: new Date(),
+    },
+  }).select("+passwordResetToken +passwordResetExpires");
+
+  if (!user) {
+    throw new Error("Invalid or expired reset token");
+  }
+
+  const hashedPassword = await hashPassword(data.password);
+
+  user.password = hashedPassword;
+
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+
+  user.sessionVersion += 1;
+
+  await user.save();
+
+  await deleteAllUserSessions(user._id.toString());
+
+  return {
+    message: "Password reset successful. Please login again.",
   };
 }
