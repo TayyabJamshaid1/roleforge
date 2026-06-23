@@ -121,7 +121,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   if (!sessionId) {
     return null;
   }
-
+  
   const sessionData = await redis.get(
     createSessionKey(sessionId)
   );
