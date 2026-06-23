@@ -10,7 +10,9 @@ export interface IUser {
   email: string;
   password?: string;
   role: UserRole;
-  authProvider: AuthProvider;
+  authProviders: ("credentials" | "google" | "github")[];
+  googleId?: string;
+  githubId?: string;
   providerId?: string;
   sessionVersion: number;
   isEmailVerified: boolean;
@@ -52,12 +54,19 @@ const userSchema = new Schema<IUser>(
       default: "user",
     },
 
-    authProvider: {
-      type: String,
+    authProviders: {
+      type: [String],
       enum: ["credentials", "google", "github"],
-      default: "credentials",
+      default: ["credentials"],
     },
 
+    googleId: {
+      type: String,
+    },
+
+    githubId: {
+      type: String,
+    },
     providerId: {
       type: String,
     },

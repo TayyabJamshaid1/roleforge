@@ -4,6 +4,7 @@ import { comparePassword, hashPassword } from "@/lib/password";
 import User from "@/models/User";
 import { generateResetToken, hashToken } from "@/lib/token";
 import { sendEmail } from "@/lib/email";
+import { welcomeEmailTemplate } from "./auth.email";
 type RegisterInput = {
   name: string;
   email: string;
@@ -32,25 +33,29 @@ export async function registerUserService(data: RegisterInput) {
     email: data.email,
     password: hashedPassword,
     role: data.role,
-    authProvider: "credentials",
+    authProviders: ["credentials"],
     isEmailVerified: false,
     isActive: true,
   });
-
+  await sendEmail({
+    to: user.email,
+    subject: "Welcome to RoleForge Auth",
+    html: welcomeEmailTemplate(user.name),
+  });
   await createSession({
     userId: user._id.toString(),
     sessionVersion: user.sessionVersion,
   });
 
-return {
-  user: {
-    userId: user._id.toString(),
-    name: user.name,
-    email: user.email,
-    role: user.role,
-  },
-  message: "Account created successfully. Please login to continue.",
-};
+  return {
+    user: {
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+    message: "Account created successfully. Please login to continue.",
+  };
 }
 
 export async function loginUserService(data: LoginInput) {
@@ -85,9 +90,7 @@ export async function loginUserService(data: LoginInput) {
     message: "Login successful",
   };
 }
-export async function forgotPasswordService(
-  email: string
-) {
+export async function forgotPasswordService(email: string) {
   await connectToDatabase();
 
   const user = await User.findOne({
@@ -100,32 +103,23 @@ export async function forgotPasswordService(
    */
   if (!user) {
     return {
-      message:
-        "If an account exists, reset instructions have been sent.",
+      message: "If an account exists, reset instructions have been sent.",
     };
   }
 
   // Raw token
-  const resetToken =
-    generateResetToken();
+  const resetToken = generateResetToken();
 
   // Hash before storing
-  const hashedToken =
-    hashToken(resetToken);
+  const hashedToken = hashToken(resetToken);
 
-  user.passwordResetToken =
-    hashedToken;
+  user.passwordResetToken = hashedToken;
 
-  user.passwordResetExpires =
-    new Date(
-      Date.now() + 15 * 60 * 1000
-    ); // 15 mins
+  user.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
   await user.save();
 
-  const resetUrl =
-
-`${process.env.APP_URL}/reset-password?token=${resetToken}`;
+  const resetUrl = `${process.env.APP_URL}/reset-password?token=${resetToken}`;
 
   await sendEmail({
     to: user.email,
@@ -150,8 +144,7 @@ export async function forgotPasswordService(
   });
 
   return {
-    message:
-      "If an account exists, reset instructions have been sent.",
+    message: "If an account exists, reset instructions have been sent.",
   };
 }
 type ResetPasswordInput = {
