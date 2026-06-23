@@ -2,32 +2,23 @@ import mongoose, { Schema, model, models } from "mongoose";
 
 export type UserRole = "user" | "manager" | "admin";
 
-export type AuthProvider =
-  | "credentials"
-  | "google"
-  | "github";
+export type AuthProvider = "credentials" | "google" | "github";
 
 export interface IUser {
   _id: mongoose.Types.ObjectId;
-
   name: string;
   email: string;
-
   password?: string;
-
   role: UserRole;
-
   authProvider: AuthProvider;
-
   providerId?: string;
-
   sessionVersion: number;
-
   isEmailVerified: boolean;
-
   isActive: boolean;
-
   lastLoginAt?: Date;
+
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -52,7 +43,7 @@ const userSchema = new Schema<IUser>(
 
     password: {
       type: String,
-      select: false,  // Exclude password by default
+      select: false, // Exclude password by default
     },
 
     role: {
@@ -70,7 +61,15 @@ const userSchema = new Schema<IUser>(
     providerId: {
       type: String,
     },
+    passwordResetToken: {
+      type: String,
+      select: false,
+    },
 
+    passwordResetExpires: {
+      type: Date,
+      select: false,
+    },
     sessionVersion: {
       type: Number,
       default: 1,
@@ -92,11 +91,9 @@ const userSchema = new Schema<IUser>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-const User =
-  models.User ||
-  model<IUser>("User", userSchema);
+const User = models.User || model<IUser>("User", userSchema);
 
 export default User;
