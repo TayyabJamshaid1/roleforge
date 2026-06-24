@@ -8,7 +8,7 @@ const page = () => {
   async function handleLogout(e: React.FormEvent) {
     e.preventDefault();
 
-    const res = await fetch("/api/auth/logout", {
+    const res = await fetch("/api/auth/logout-all", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

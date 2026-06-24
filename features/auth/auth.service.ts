@@ -11,6 +11,7 @@ import {
   getGitHubPrimaryEmail,
   getGitHubUser,
 } from "@/lib/github";
+import { rateLimit } from "@/lib/rate-limit";
 type RegisterInput = {
   name: string;
   email: string;
@@ -71,6 +72,15 @@ export async function registerUserService(data: RegisterInput) {
 }
 
 export async function loginUserService(data: LoginInput) {
+  const allowed = await rateLimit(
+    `login:${data.email}`,
+    5,
+    600,
+  );
+
+  if (!allowed) {
+    throw new Error("Too many login attempts. Try again after 10 minutes.");
+  }
   await connectToDatabase();
 
   const user = await User.findOne({ email: data.email }).select("+password"); // Include password for verification
@@ -93,7 +103,10 @@ export async function loginUserService(data: LoginInput) {
 
   user.lastLoginAt = new Date();
   await user.save();
-
+  await createSession({
+    userId: user._id.toString(),
+    sessionVersion: user.sessionVersion,
+  });
   return {
     user: {
       userId: user._id.toString(),
@@ -105,6 +118,15 @@ export async function loginUserService(data: LoginInput) {
   };
 }
 export async function forgotPasswordService(email: string) {
+  const allowed = await rateLimit(
+    `forgot:${email}`,
+    3,
+    600,
+  );
+
+  if (!allowed) {
+    throw new Error("Too many password reset requests. Please try later.");
+  }
   await connectToDatabase();
 
   const user = await User.findOne({
