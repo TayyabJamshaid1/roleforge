@@ -4,13 +4,14 @@ import {
   registerSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  googleLoginSchema
 } from "./auth.schema";
-
 import {
   loginUserService,
   registerUserService,
   forgotPasswordService,
   resetPasswordService,
+  googleLoginService
 } from "./auth.service";
 
 export async function registerController(body: unknown) {
@@ -46,4 +47,11 @@ export async function resetPasswordController(body: unknown) {
   const validatedData = resetPasswordSchema.parse(body);
 
   return await resetPasswordService(validatedData);
+}
+
+
+export async function googleLoginController(body: unknown) {
+  const validatedData = googleLoginSchema.parse(body);
+
+  return await googleLoginService(validatedData);
 }

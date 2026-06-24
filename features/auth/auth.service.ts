@@ -5,6 +5,7 @@ import User from "@/models/User";
 import { generateResetToken, hashToken } from "@/lib/token";
 import { sendEmail } from "@/lib/email";
 import { welcomeEmailTemplate } from "./auth.email";
+import { verifyGoogleToken } from "@/lib/google";
 type RegisterInput = {
   name: string;
   email: string;
@@ -183,5 +184,69 @@ export async function resetPasswordService(data: ResetPasswordInput) {
 
   return {
     message: "Password reset successful. Please login again.",
+  };
+}
+
+type GoogleLoginInput = {
+  token: string;
+};
+
+export async function googleLoginService(data: GoogleLoginInput) {
+  await connectToDatabase();
+
+  const googleUser = await verifyGoogleToken(data.token);
+
+  if (!googleUser.email) {
+    throw new Error("Google account email not found");
+  }
+
+  if (!googleUser.emailVerified) {
+    throw new Error("Google email is not verified");
+  }
+
+  let user = await User.findOne({
+    email: googleUser.email,
+  });
+
+  if (user) {
+    if (!user.authProviders.includes("google")) {
+      user.authProviders.push("google");
+    }
+
+    user.googleId = googleUser.googleId;
+    user.isEmailVerified = true;
+    user.lastLoginAt = new Date();
+
+    await user.save();
+  } else {
+    user = await User.create({
+      name: googleUser.name || "Google User",
+      email: googleUser.email,
+      role: "user",
+      authProviders: ["google"],
+      googleId: googleUser.googleId,
+      isEmailVerified: true,
+      isActive: true,
+      lastLoginAt: new Date(),
+    });
+  }
+
+  if (!user.isActive) {
+    throw new Error("Your account has been disabled");
+  }
+
+  await createSession({
+    userId: user._id.toString(),
+    sessionVersion: user.sessionVersion,
+  });
+
+  return {
+    message: "Google login successful",
+    user: {
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
   };
 }
