@@ -99,7 +99,17 @@ export default function LoginPage() {
             alert("Google login failed");
           }}
         />
+        <div className="w-full my-2 flex items-center">
+<a
+ href="/api/auth/github"
 
+ className="w-full border px-4 py-2 rounded text-center hover:bg-gray-100 transition"
+>
+
+Continue With GitHub
+
+</a>
+</div>
         <div className="mt-5 text-center text-sm">
           <a href="/forgot-password" className="underline">
             Forgot Password?

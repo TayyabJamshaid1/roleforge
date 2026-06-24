@@ -1,9 +1,6 @@
 import mongoose, { Schema, model, models } from "mongoose";
-
 export type UserRole = "user" | "manager" | "admin";
-
 export type AuthProvider = "credentials" | "google" | "github";
-
 export interface IUser {
   _id: mongoose.Types.ObjectId;
   name: string;
@@ -18,10 +15,10 @@ export interface IUser {
   isEmailVerified: boolean;
   isActive: boolean;
   lastLoginAt?: Date;
-
   passwordResetToken?: string;
   passwordResetExpires?: Date;
-
+  emailVerificationToken?: string;
+  emailVerificationExpires?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -59,7 +56,15 @@ const userSchema = new Schema<IUser>(
       enum: ["credentials", "google", "github"],
       default: ["credentials"],
     },
+    emailVerificationToken: {
+      type: String,
+      select: false,
+    },
 
+    emailVerificationExpires: {
+      type: Date,
+      select: false,
+    },
     googleId: {
       type: String,
     },

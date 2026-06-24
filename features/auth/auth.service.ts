@@ -6,6 +6,11 @@ import { generateResetToken, hashToken } from "@/lib/token";
 import { sendEmail } from "@/lib/email";
 import { welcomeEmailTemplate } from "./auth.email";
 import { verifyGoogleToken } from "@/lib/google";
+import {
+  exchangeGitHubCodeForToken,
+  getGitHubPrimaryEmail,
+  getGitHubUser,
+} from "@/lib/github";
 type RegisterInput = {
   name: string;
   email: string;
@@ -242,6 +247,58 @@ export async function googleLoginService(data: GoogleLoginInput) {
 
   return {
     message: "Google login successful",
+    user: {
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+  };
+}
+export async function githubLoginService(code: string) {
+  await connectToDatabase();
+
+  const accessToken = await exchangeGitHubCodeForToken(code);
+
+  const githubUser = await getGitHubUser(accessToken);
+
+  const email = await getGitHubPrimaryEmail(accessToken);
+
+  let user = await User.findOne({ email });
+
+  if (user) {
+    if (!user.authProviders.includes("github")) {
+      user.authProviders.push("github");
+    }
+
+    user.githubId = githubUser.id.toString();
+    user.isEmailVerified = true;
+    user.lastLoginAt = new Date();
+
+    await user.save();
+  } else {
+    user = await User.create({
+      name: githubUser.name || githubUser.login,
+      email,
+      role: "user",
+      authProviders: ["github"],
+      githubId: githubUser.id.toString(),
+      isEmailVerified: true,
+      isActive: true,
+      lastLoginAt: new Date(),
+    });
+  }
+
+  if (!user.isActive) {
+    throw new Error("Your account has been disabled");
+  }
+
+  await createSession({
+    userId: user._id.toString(),
+    sessionVersion: user.sessionVersion,
+  });
+
+  return {
     user: {
       userId: user._id.toString(),
       name: user.name,
