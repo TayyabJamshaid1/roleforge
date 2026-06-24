@@ -4,7 +4,7 @@ import { comparePassword, hashPassword } from "@/lib/password";
 import User from "@/models/User";
 import { generateResetToken, hashToken } from "@/lib/token";
 import { sendEmail } from "@/lib/email";
-import { welcomeEmailTemplate } from "./auth.email";
+import { verifyEmailTemplate, welcomeEmailTemplate } from "./auth.email";
 import { verifyGoogleToken } from "@/lib/google";
 import {
   exchangeGitHubCodeForToken,
@@ -22,7 +22,21 @@ type LoginInput = {
   email: string;
   password: string;
 };
+async function createAndSendVerificationEmail(user: any) {
+  const rawToken = generateResetToken();
+  const hashedToken = hashToken(rawToken);
+  user.emailVerificationToken = hashedToken;
+  user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  // Debugging line
+  await user.save();
+  const verifyUrl = `${process.env.APP_URL}/verify-email?token=${rawToken}`;
 
+  await sendEmail({
+    to: user.email,
+    subject: "Verify your RoleForge email",
+    html: verifyEmailTemplate(user.name, verifyUrl),
+  });
+}
 export async function registerUserService(data: RegisterInput) {
   await connectToDatabase();
 
@@ -43,16 +57,7 @@ export async function registerUserService(data: RegisterInput) {
     isEmailVerified: false,
     isActive: true,
   });
-  await sendEmail({
-    to: user.email,
-    subject: "Welcome to RoleForge Auth",
-    html: welcomeEmailTemplate(user.name),
-  });
-  await createSession({
-    userId: user._id.toString(),
-    sessionVersion: user.sessionVersion,
-  });
-
+  await createAndSendVerificationEmail(user);
   return {
     user: {
       userId: user._id.toString(),
@@ -60,7 +65,8 @@ export async function registerUserService(data: RegisterInput) {
       email: user.email,
       role: user.role,
     },
-    message: "Account created successfully. Please login to continue.",
+    message:
+      "Account created successfully. Please check your email to verify your account.",
   };
 }
 
@@ -76,7 +82,9 @@ export async function loginUserService(data: LoginInput) {
   if (!user.isActive) {
     throw new Error("Your account has been disabled");
   }
-
+  if (!user.isEmailVerified) {
+    throw new Error("Please verify your email before logging in.");
+  }
   const isPasswordValid = await comparePassword(data.password, user.password);
 
   if (!isPasswordValid) {
@@ -305,5 +313,66 @@ export async function githubLoginService(code: string) {
       email: user.email,
       role: user.role,
     },
+  };
+}
+type VerifyEmailInput = {
+  token: string;
+};
+
+export async function verifyEmailService(data: VerifyEmailInput) {
+  await connectToDatabase();
+
+  const hashedToken = hashToken(data.token);
+
+  const user = await User.findOne({
+    emailVerificationToken: hashedToken,
+    emailVerificationExpires: {
+      $gt: new Date(),
+    },
+  }).select("+emailVerificationToken +emailVerificationExpires");
+  if (!user) {
+    throw new Error("Invalid or expired verification token");
+  }
+
+  user.isEmailVerified = true;
+  user.emailVerificationToken = undefined;
+  user.emailVerificationExpires = undefined;
+
+  await user.save();
+
+  await sendEmail({
+    to: user.email,
+    subject: "Welcome to RoleForge Auth",
+    html: welcomeEmailTemplate(user.name),
+  });
+
+  return {
+    message: "Email verified successfully. You can now login.",
+  };
+}
+
+export async function resendVerificationEmailService(email: string) {
+  await connectToDatabase();
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return {
+      message:
+        "If an account exists and is not verified, a verification email has been sent.",
+    };
+  }
+
+  if (user.isEmailVerified) {
+    return {
+      message: "Your email is already verified.",
+    };
+  }
+
+  await createAndSendVerificationEmail(user);
+
+  return {
+    message:
+      "If an account exists and is not verified, a verification email has been sent.",
   };
 }

@@ -11,3 +11,23 @@ export function welcomeEmailTemplate(name: string) {
     <p>Thanks,<br/>RoleForge Team</p>
   `;
 }
+
+export function verifyEmailTemplate(name: string, verifyUrl: string) {
+  return `
+    <h2>Verify Your Email</h2>
+
+    <p>Hi ${name},</p>
+
+    <p>Please verify your email address by clicking the link below:</p>
+
+    <a href="${verifyUrl}">
+      Verify Email
+    </a>
+
+    <p>This link expires in 24 hours.</p>
+
+    <p>If you did not create this account, you can ignore this email.</p>
+
+    <p>Thanks,<br/>RoleForge Team</p>
+  `;
+}

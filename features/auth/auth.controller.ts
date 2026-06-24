@@ -4,14 +4,18 @@ import {
   registerSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  googleLoginSchema
+  googleLoginSchema,
+  verifyEmailSchema,
+  resendVerificationEmailSchema
 } from "./auth.schema";
 import {
   loginUserService,
   registerUserService,
   forgotPasswordService,
   resetPasswordService,
-  googleLoginService
+  googleLoginService,
+  verifyEmailService,
+  resendVerificationEmailService
 } from "./auth.service";
 
 export async function registerController(body: unknown) {
@@ -54,4 +58,14 @@ export async function googleLoginController(body: unknown) {
   const validatedData = googleLoginSchema.parse(body);
 
   return await googleLoginService(validatedData);
+}
+export async function verifyEmailController(body: unknown) {
+  const validatedData = verifyEmailSchema.parse(body);
+  return await verifyEmailService(validatedData);
+}
+
+export async function resendVerificationEmailController(body: unknown) {
+  const validatedData = resendVerificationEmailSchema.parse(body);
+
+  return await resendVerificationEmailService(validatedData.email);
 }

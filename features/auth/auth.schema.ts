@@ -36,3 +36,10 @@ export const resetPasswordSchema = z.object({
 export const googleLoginSchema = z.object({
   token: z.string().min(1, "Google token is required"),
 });
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1, "Verification token is required"),
+});
+
+export const resendVerificationEmailSchema = z.object({
+  email: z.string().email("Invalid email address").toLowerCase(),
+});
