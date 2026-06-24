@@ -35,6 +35,8 @@ export const resetPasswordSchema = z.object({
 });
 export const googleLoginSchema = z.object({
   token: z.string().min(1, "Google token is required"),
+  ip: z.string().optional(),
+  userAgent: z.string().optional(),
 });
 export const verifyEmailSchema = z.object({
   token: z.string().min(1, "Verification token is required"),

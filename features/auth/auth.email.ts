@@ -31,3 +31,30 @@ export function verifyEmailTemplate(name: string, verifyUrl: string) {
     <p>Thanks,<br/>RoleForge Team</p>
   `;
 }
+export function newLoginEmailTemplate({
+  name,
+  ip,
+  userAgent,
+}: {
+  name: string;
+  ip?: string;
+  userAgent?: string;
+}) {
+  return `
+    <h2>New Login Detected</h2>
+
+    <p>Hi ${name},</p>
+
+    <p>We noticed a new login to your RoleForge Auth account.</p>
+
+    <p><strong>IP:</strong> ${ip || "Unknown"}</p>
+
+    <p><strong>Device:</strong> ${userAgent || "Unknown"}</p>
+
+    <p>If this was you, no action is needed.</p>
+
+    <p>If this was not you, reset your password immediately and logout from all devices.</p>
+
+    <p>Thanks,<br/>RoleForge Team</p>
+  `;
+}

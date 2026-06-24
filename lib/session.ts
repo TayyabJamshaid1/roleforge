@@ -1,27 +1,19 @@
 // lib/session.ts
 
 import crypto from "crypto";
-import { cookies } from "next/headers";
+import { cookies,headers } from "next/headers";
 import { redis } from "@/lib/redis";
 import { connectToDatabase } from "@/lib/db";
 import User from "@/models/User";
+import { isSuspiciousActivity } from "./secuirity";
 
 const SESSION_COOKIE_NAME =
   process.env.SESSION_COOKIE_NAME || "roleforge_session";
 
-const SESSION_EXPIRES_IN_SECONDS =
-  Number(process.env.SESSION_EXPIRES_IN_SECONDS || 604800);
+const SESSION_EXPIRES_IN_SECONDS = Number(
+  process.env.SESSION_EXPIRES_IN_SECONDS || 604800,
+);
 
-/**
- * Minimal data stored in Redis.
- */
-export type RedisSessionPayload = {
-  userId: string;
-  sessionVersion: number;
-  ip?: string;
-  userAgent?: string;
-  createdAt: string;
-};
 
 /**
  * Final authenticated user.
@@ -32,6 +24,15 @@ export type AuthUser = {
   name: string;
   email: string;
   role: "user" | "manager" | "admin";
+};
+
+export type RedisSessionPayload = {
+  userId: string;
+  sessionVersion: number;
+  createdAt?: string;
+  // Optional security information
+  ip?: string;
+  userAgent?: string;
 };
 
 function createSessionKey(sessionId: string) {
@@ -57,7 +58,7 @@ export function generateSessionId() {
  * - github login
  */
 export async function createSession(
-  payload: Omit<RedisSessionPayload, "createdAt">
+  payload: Omit<RedisSessionPayload, "createdAt">,
 ) {
   const sessionId = generateSessionId();
 
@@ -70,32 +71,25 @@ export async function createSession(
     createSessionKey(sessionId),
     JSON.stringify(sessionData),
     "EX",
-    SESSION_EXPIRES_IN_SECONDS
+    SESSION_EXPIRES_IN_SECONDS,
   );
 
-  await redis.sadd(
-    createUserSessionsKey(payload.userId),
-    sessionId
-  );
+  await redis.sadd(createUserSessionsKey(payload.userId), sessionId);
 
   await redis.expire(
     createUserSessionsKey(payload.userId),
-    SESSION_EXPIRES_IN_SECONDS
+    SESSION_EXPIRES_IN_SECONDS,
   );
 
   const cookieStore = await cookies();
 
-  cookieStore.set(
-    SESSION_COOKIE_NAME,
-    sessionId,
-    {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: SESSION_EXPIRES_IN_SECONDS,
-    }
-  );
+  cookieStore.set(SESSION_COOKIE_NAME, sessionId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_EXPIRES_IN_SECONDS,
+  });
 
   return sessionId;
 }
@@ -112,59 +106,118 @@ export async function createSession(
  * ↓
  * sessionVersion validation
  */
+
+
 export async function getCurrentUser(): Promise<AuthUser | null> {
+  /**
+   * Read cookie from browser.
+   *
+   * Example:
+   * roleforge_session=abc123
+   */
   const cookieStore = await cookies();
 
-  const sessionId =
-    cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const sessionId = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
   if (!sessionId) {
     return null;
   }
-  
-  const sessionData = await redis.get(
-    createSessionKey(sessionId)
-  );
+
+  /**
+   * Get session from Redis.
+   *
+   * session:abc123
+   */
+  const sessionData = await redis.get(createSessionKey(sessionId));
 
   if (!sessionData) {
     return null;
   }
 
-  const session =
-    JSON.parse(sessionData) as RedisSessionPayload;
+  /**
+   * Convert Redis JSON string
+   * into object.
+   */
+  const session = JSON.parse(sessionData) as RedisSessionPayload;
 
+  /**
+   * Get current request headers
+   * for suspicious activity check.
+   */
+  const headerStore = await headers();
+  const currentUserAgent = headerStore.get("user-agent") || "unknown";
+
+  /**
+   * Compare current device
+   * with stored device.
+   *
+   * If suspicious:
+   * delete session immediately.
+   */
+  const suspicious = isSuspiciousActivity({
+    currentUserAgent
+  });
+
+  if (suspicious) {
+    /**
+     * Delete Redis session.
+     */
+    await redis.del(createSessionKey(sessionId));
+
+    /**
+     * Remove sessionId from:
+     *
+     * user_sessions:userId
+     */
+    await redis.srem(createUserSessionsKey(session.userId), sessionId);
+
+    /**
+     * Delete browser cookie.
+     */
+    cookieStore.delete(SESSION_COOKIE_NAME);
+
+    return null;
+  }
+
+  /**
+   * Get fresh user
+   * from MongoDB.
+   */
   await connectToDatabase();
 
-  const user = await User.findById(
-    session.userId
-  );
+  const user = await User.findById(session.userId);
 
   if (!user) {
     return null;
   }
 
   /**
-   * Security check.
+   * Important Security Check
    *
-   * If password reset or admin
-   * invalidated sessions,
-   * sessionVersion will mismatch.
+   * If password reset
+   * or logout all devices happened,
+   * sessionVersion changes.
+   *
+   * Old sessions become invalid.
    */
-  if (
-    user.sessionVersion !==
-    session.sessionVersion
-  ) {
+  if (user.sessionVersion !== session.sessionVersion) {
     return null;
   }
 
+  /**
+   * User account blocked?
+   */
   if (!user.isActive) {
     return null;
   }
 
   return {
     userId: user._id.toString(),
+
     name: user.name,
+
     email: user.email,
+
     role: user.role,
   };
 }
@@ -175,57 +228,38 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 export async function deleteCurrentSession() {
   const cookieStore = await cookies();
 
-  const sessionId =
-    cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const sessionId = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
   if (!sessionId) {
     return;
   }
 
-  const sessionData = await redis.get(
-    createSessionKey(sessionId)
-  );
+  const sessionData = await redis.get(createSessionKey(sessionId));
 
   if (sessionData) {
-    const session =
-      JSON.parse(sessionData) as RedisSessionPayload;
+    const session = JSON.parse(sessionData) as RedisSessionPayload;
 
-    await redis.srem(
-      createUserSessionsKey(session.userId),
-      sessionId
-    );
+    await redis.srem(createUserSessionsKey(session.userId), sessionId);
   }
 
-  await redis.del(
-    createSessionKey(sessionId)
-  );
+  await redis.del(createSessionKey(sessionId));
 
-  cookieStore.delete(
-    SESSION_COOKIE_NAME
-  );
+  cookieStore.delete(SESSION_COOKIE_NAME);
 }
 
 /**
  * Logout all devices.
  */
-export async function deleteAllUserSessions(
-  userId: string
-) {
-  const sessionIds = await redis.smembers(
-    createUserSessionsKey(userId)
-  );
+export async function deleteAllUserSessions(userId: string) {
+  const sessionIds = await redis.smembers(createUserSessionsKey(userId));
 
   if (sessionIds.length > 0) {
-    const keys = sessionIds.map((id) =>
-      createSessionKey(id)
-    );
+    const keys = sessionIds.map((id) => createSessionKey(id));
 
     await redis.del(...keys);
   }
 
-  await redis.del(
-    createUserSessionsKey(userId)
-  );
+  await redis.del(createUserSessionsKey(userId));
 }
 
 /**
@@ -234,9 +268,7 @@ export async function deleteAllUserSessions(
  * - password change
  * - suspicious activity
  */
-export async function invalidateAllUserSessions(
-  userId: string
-) {
+export async function invalidateAllUserSessions(userId: string) {
   await connectToDatabase();
 
   await User.findByIdAndUpdate(userId, {

@@ -4,7 +4,11 @@ import { comparePassword, hashPassword } from "@/lib/password";
 import User from "@/models/User";
 import { generateResetToken, hashToken } from "@/lib/token";
 import { sendEmail } from "@/lib/email";
-import { verifyEmailTemplate, welcomeEmailTemplate } from "./auth.email";
+import {
+  newLoginEmailTemplate,
+  verifyEmailTemplate,
+  welcomeEmailTemplate,
+} from "./auth.email";
 import { verifyGoogleToken } from "@/lib/google";
 import {
   exchangeGitHubCodeForToken,
@@ -22,6 +26,8 @@ type RegisterInput = {
 type LoginInput = {
   email: string;
   password: string;
+  ip?: string;
+  userAgent?: string;
 };
 async function createAndSendVerificationEmail(user: any) {
   const rawToken = generateResetToken();
@@ -72,11 +78,7 @@ export async function registerUserService(data: RegisterInput) {
 }
 
 export async function loginUserService(data: LoginInput) {
-  const allowed = await rateLimit(
-    `login:${data.email}`,
-    5,
-    600,
-  );
+  const allowed = await rateLimit(`login:${data.email}`, 5, 600);
 
   if (!allowed) {
     throw new Error("Too many login attempts. Try again after 10 minutes.");
@@ -106,6 +108,17 @@ export async function loginUserService(data: LoginInput) {
   await createSession({
     userId: user._id.toString(),
     sessionVersion: user.sessionVersion,
+    ip: data.ip,
+    userAgent: data.userAgent,
+  });
+  await sendEmail({
+    to: user.email,
+    subject: "New login to your RoleForge account",
+    html: newLoginEmailTemplate({
+      name: user.name,
+      ip: data.ip,
+      userAgent: data.userAgent,
+    }),
   });
   return {
     user: {
@@ -118,11 +131,7 @@ export async function loginUserService(data: LoginInput) {
   };
 }
 export async function forgotPasswordService(email: string) {
-  const allowed = await rateLimit(
-    `forgot:${email}`,
-    3,
-    600,
-  );
+  const allowed = await rateLimit(`forgot:${email}`, 3, 600);
 
   if (!allowed) {
     throw new Error("Too many password reset requests. Please try later.");
@@ -224,6 +233,8 @@ export async function resetPasswordService(data: ResetPasswordInput) {
 
 type GoogleLoginInput = {
   token: string;
+  ip?: string;
+  userAgent?: string;
 };
 
 export async function googleLoginService(data: GoogleLoginInput) {
@@ -273,8 +284,18 @@ export async function googleLoginService(data: GoogleLoginInput) {
   await createSession({
     userId: user._id.toString(),
     sessionVersion: user.sessionVersion,
+    ip: data.ip,
+    userAgent: data.userAgent,
   });
-
+  await sendEmail({
+    to: user.email,
+    subject: "New login to your RoleForge account",
+    html: newLoginEmailTemplate({
+      name: user.name,
+      ip: data.ip, // Google
+      userAgent: data.userAgent,
+    }),
+  });
   return {
     message: "Google login successful",
     user: {
@@ -285,7 +306,13 @@ export async function googleLoginService(data: GoogleLoginInput) {
     },
   };
 }
-export async function githubLoginService(code: string) {
+export async function githubLoginService(
+  code: string,
+  meta?: {
+    ip?: string;
+    userAgent?: string;
+  },
+) {
   await connectToDatabase();
 
   const accessToken = await exchangeGitHubCodeForToken(code);
@@ -326,8 +353,18 @@ export async function githubLoginService(code: string) {
   await createSession({
     userId: user._id.toString(),
     sessionVersion: user.sessionVersion,
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
   });
-
+  await sendEmail({
+    to: user.email,
+    subject: "New login to your RoleForge account",
+    html: newLoginEmailTemplate({
+      name: user.name,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+    }),
+  });
   return {
     user: {
       userId: user._id.toString(),

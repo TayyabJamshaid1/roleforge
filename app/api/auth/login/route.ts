@@ -1,38 +1,35 @@
 import { NextResponse } from "next/server";
 
-import {
-  loginController,
-} from "@/features/auth/auth.controller";
+import { loginController } from "@/features/auth/auth.controller";
 
-export async function POST(
-  request: Request
-) {
+export async function POST(request: Request) {
   try {
-    const body =
-      await request.json();
+    const body = await request.json();
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0] ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
 
-    const result =
-      await loginController(
-        body
-      );
+    const userAgent = request.headers.get("user-agent") || "unknown";
 
-    return NextResponse.json(
-      result,
-      {
-        status: 200,
-      }
-    );
+    const result = await loginController({
+      ...body,
+      ip,
+      userAgent,
+    });
+
+    return NextResponse.json(result, {
+      status: 200,
+    });
   } catch (error: any) {
     return NextResponse.json(
       {
         success: false,
-        message:
-          error.message ||
-          "Something went wrong",
+        message: error.message || "Something went wrong",
       },
       {
         status: 400,
-      }
+      },
     );
   }
 }
