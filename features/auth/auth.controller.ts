@@ -1,4 +1,4 @@
-import { deleteCurrentSession } from "@/lib/session";
+import { deleteCurrentSession, getCurrentUser } from "@/lib/session";
 import {
   loginSchema,
   registerSchema,
@@ -6,7 +6,7 @@ import {
   resetPasswordSchema,
   googleLoginSchema,
   verifyEmailSchema,
-  resendVerificationEmailSchema
+  resendVerificationEmailSchema,
 } from "./auth.schema";
 import {
   loginUserService,
@@ -15,7 +15,8 @@ import {
   resetPasswordService,
   googleLoginService,
   verifyEmailService,
-  resendVerificationEmailService
+  resendVerificationEmailService,
+  logoutAllDevicesService,
 } from "./auth.service";
 
 export async function registerController(body: unknown) {
@@ -53,7 +54,6 @@ export async function resetPasswordController(body: unknown) {
   return await resetPasswordService(validatedData);
 }
 
-
 export async function googleLoginController(body: unknown) {
   const validatedData = googleLoginSchema.parse(body);
 
@@ -68,4 +68,13 @@ export async function resendVerificationEmailController(body: unknown) {
   const validatedData = resendVerificationEmailSchema.parse(body);
 
   return await resendVerificationEmailService(validatedData.email);
+}
+export async function logoutAllDevicesController() {
+  const authUser = await getCurrentUser();
+
+  if (!authUser) {
+    throw new Error("Unauthorized");
+  }
+
+  return await logoutAllDevicesService(authUser.userId);
 }

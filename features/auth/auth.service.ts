@@ -376,3 +376,24 @@ export async function resendVerificationEmailService(email: string) {
       "If an account exists and is not verified, a verification email has been sent.",
   };
 }
+export async function logoutAllDevicesService(userId: string) {
+  await connectToDatabase();
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // Increase version
+
+  user.sessionVersion += 1;
+
+  await user.save();
+
+  await deleteAllUserSessions(userId);
+
+  return {
+    message: "Logged out from all devices",
+  };
+}
