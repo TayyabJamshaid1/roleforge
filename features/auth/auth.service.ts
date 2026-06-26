@@ -1,5 +1,9 @@
 import { connectToDatabase } from "@/lib/db";
-import { createSession, deleteAllUserSessions, getUserSessions } from "@/lib/session";
+import {
+  createSession,
+  deleteAllUserSessions,
+  getUserSessions,
+} from "@/lib/session";
 import { comparePassword, hashPassword } from "@/lib/password";
 import User from "@/models/User";
 import { generateResetToken, hashToken } from "@/lib/token";
@@ -65,6 +69,10 @@ export async function registerUserService(data: RegisterInput) {
     isActive: true,
   });
   await createAndSendVerificationEmail(user);
+  await createAuditLog({
+    userId: user._id.toString(),
+    action: AuditAction.REGISTER,
+  });
   return {
     user: {
       userId: user._id.toString(),
@@ -119,6 +127,12 @@ export async function loginUserService(data: LoginInput) {
       ip: data.ip,
       userAgent: data.userAgent,
     }),
+  });
+  await createAuditLog({
+    userId: user._id.toString(),
+    action: AuditAction.LOGIN,
+    ip: data.ip,
+    userAgent: data.userAgent,
   });
   return {
     user: {
@@ -187,7 +201,10 @@ export async function forgotPasswordService(email: string) {
       </p>
     `,
   });
-
+  await createAuditLog({
+    userId: user._id.toString(),
+    action: AuditAction.FORGOT_PASSWORD,
+  });
   return {
     message: "If an account exists, reset instructions have been sent.",
   };
@@ -223,7 +240,10 @@ export async function resetPasswordService(data: ResetPasswordInput) {
   user.sessionVersion += 1;
 
   await user.save();
-
+  await createAuditLog({
+    userId: user._id.toString(),
+    action: AuditAction.RESET_PASSWORD,
+  });
   await deleteAllUserSessions(user._id.toString());
 
   return {
@@ -296,6 +316,12 @@ export async function googleLoginService(data: GoogleLoginInput) {
       userAgent: data.userAgent,
     }),
   });
+  await createAuditLog({
+    userId: user._id.toString(),
+    action: AuditAction.GOOGLE_LOGIN,
+    ip: data?.ip,
+    userAgent: data?.userAgent,
+  });
   return {
     message: "Google login successful",
     user: {
@@ -365,6 +391,12 @@ export async function githubLoginService(
       userAgent: meta?.userAgent,
     }),
   });
+  await createAuditLog({
+    userId: user._id.toString(),
+    action: AuditAction.GITHUB_LOGIN,
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+  });
   return {
     user: {
       userId: user._id.toString(),
@@ -404,7 +436,10 @@ export async function verifyEmailService(data: VerifyEmailInput) {
     subject: "Welcome to RoleForge Auth",
     html: welcomeEmailTemplate(user.name),
   });
-
+  await createAuditLog({
+    userId: user._id.toString(),
+    action: AuditAction.VERIFY_EMAIL,
+  });
   return {
     message: "Email verified successfully. You can now login.",
   };
@@ -451,7 +486,10 @@ export async function logoutAllDevicesService(userId: string) {
   await user.save();
 
   await deleteAllUserSessions(userId);
-
+  await createAuditLog({
+    userId,
+    action: AuditAction.LOGOUT_ALL_DEVICES,
+  });
   return {
     message: "Logged out from all devices",
   };
@@ -466,13 +504,17 @@ export async function getMySessionsService(userId: string) {
 }
 
 import { deleteSessionById } from "@/lib/session";
+import { AuditAction, createAuditLog } from "@/lib/AuditLog";
 
 export async function logoutSingleDeviceService(
   userId: string,
-  sessionId: string
+  sessionId: string,
 ) {
   await deleteSessionById(userId, sessionId);
-
+  await createAuditLog({
+    userId,
+    action: AuditAction.LOGOUT,
+  });
   return {
     message: "Device logged out successfully",
   };
