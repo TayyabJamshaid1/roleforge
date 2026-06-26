@@ -93,6 +93,23 @@ export async function createSession(
 
   return sessionId;
 }
+async function refreshSessionExpiry(userId: string, sessionId: string) {
+  const sessionKey = createSessionKey(sessionId);
+  const userSessionsKey = createUserSessionsKey(userId);
+
+  await redis.expire(sessionKey, SESSION_EXPIRES_IN_SECONDS);
+  await redis.expire(userSessionsKey, SESSION_EXPIRES_IN_SECONDS);
+
+  const cookieStore = await cookies();
+
+  cookieStore.set(SESSION_COOKIE_NAME, sessionId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_EXPIRES_IN_SECONDS,
+  });
+}
 
 /**
  * Get current logged in user.
@@ -211,15 +228,14 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     return null;
   }
 
-  return {
-    userId: user._id.toString(),
+await refreshSessionExpiry(session.userId, sessionId);
 
-    name: user.name,
-
-    email: user.email,
-
-    role: user.role,
-  };
+return {
+  userId: user._id.toString(),
+  name: user.name,
+  email: user.email,
+  role: user.role,
+};
 }
 
 /**
@@ -278,4 +294,45 @@ export async function invalidateAllUserSessions(userId: string) {
   });
 
   await deleteAllUserSessions(userId);
+}
+//This lets a user see active sessions and later logout a single device.
+export async function getUserSessions(userId: string) {
+  const userSessionsKey = createUserSessionsKey(userId);
+
+  const sessionIds = await redis.smembers(userSessionsKey);
+
+  const sessions = await Promise.all(
+    sessionIds.map(async (sessionId) => {
+      const sessionData = await redis.get(createSessionKey(sessionId));
+
+      if (!sessionData) return null;
+
+      return {
+        sessionId,
+        ...JSON.parse(sessionData),
+      };
+    })
+  );
+
+  return sessions.filter(Boolean);
+}
+export async function deleteSessionById(userId: string, sessionId: string) {
+  const sessionKey = createSessionKey(sessionId);
+  const userSessionsKey = createUserSessionsKey(userId);
+
+  const sessionData = await redis.get(sessionKey);
+
+  if (!sessionData) {
+    await redis.srem(userSessionsKey, sessionId);
+    return;
+  }
+
+  const session = JSON.parse(sessionData) as RedisSessionPayload;
+
+  if (session.userId !== userId) {
+    throw new Error("You cannot delete this session");
+  }
+
+  await redis.del(sessionKey);
+  await redis.srem(userSessionsKey, sessionId);
 }

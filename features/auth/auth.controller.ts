@@ -17,6 +17,8 @@ import {
   verifyEmailService,
   resendVerificationEmailService,
   logoutAllDevicesService,
+  getMySessionsService,
+  logoutSingleDeviceService
 } from "./auth.service";
 
 export async function registerController(body: unknown) {
@@ -77,4 +79,24 @@ export async function logoutAllDevicesController() {
   }
 
   return await logoutAllDevicesService(authUser.userId);
+}
+
+
+export async function getMySessionsController() {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  return await getMySessionsService(user.userId);
+}
+export async function logoutSingleDeviceController(sessionId: string) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  return await logoutSingleDeviceService(user.userId, sessionId);
 }

@@ -1,5 +1,5 @@
 import { connectToDatabase } from "@/lib/db";
-import { createSession, deleteAllUserSessions } from "@/lib/session";
+import { createSession, deleteAllUserSessions, getUserSessions } from "@/lib/session";
 import { comparePassword, hashPassword } from "@/lib/password";
 import User from "@/models/User";
 import { generateResetToken, hashToken } from "@/lib/token";
@@ -454,5 +454,26 @@ export async function logoutAllDevicesService(userId: string) {
 
   return {
     message: "Logged out from all devices",
+  };
+}
+
+export async function getMySessionsService(userId: string) {
+  const sessions = await getUserSessions(userId);
+
+  return {
+    sessions,
+  };
+}
+
+import { deleteSessionById } from "@/lib/session";
+
+export async function logoutSingleDeviceService(
+  userId: string,
+  sessionId: string
+) {
+  await deleteSessionById(userId, sessionId);
+
+  return {
+    message: "Device logged out successfully",
   };
 }

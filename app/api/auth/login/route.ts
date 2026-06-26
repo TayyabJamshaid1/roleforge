@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       userAgent,
     });
 
-    return NextResponse.json(result, {
+    return NextResponse.json({...result,success:true}, {
       status: 200,
     });
   } catch (error: any) {
