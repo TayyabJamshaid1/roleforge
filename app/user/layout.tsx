@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
 import { redirect } from "next/navigation";
+import SessionRefresher from "../components/SessionRefresher";
 
 export default async function UserLayout({
   children,
@@ -12,5 +13,11 @@ export default async function UserLayout({
     redirect("/login");
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {" "}
+      <SessionRefresher />
+      {children}
+    </>
+  );
 }

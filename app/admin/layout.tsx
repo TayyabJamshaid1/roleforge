@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
 import { redirect } from "next/navigation";
+import SessionRefresher from "../components/SessionRefresher";
 
 export default async function AdminLayout({
   children,
@@ -16,5 +17,11 @@ export default async function AdminLayout({
     redirect("/unauthorized");
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {" "}
+      <SessionRefresher />
+      {children}
+    </>
+  );
 }

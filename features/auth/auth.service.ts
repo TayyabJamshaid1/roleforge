@@ -41,12 +41,16 @@ async function createAndSendVerificationEmail(user: any) {
   // Debugging line
   await user.save();
   const verifyUrl = `${process.env.APP_URL}/verify-email?token=${rawToken}`;
-
-  await sendEmail({
-    to: user.email,
+await addEmailJob({
+  to: user.email,
     subject: "Verify your RoleForge email",
     html: verifyEmailTemplate(user.name, verifyUrl),
-  });
+});
+  // await sendEmail({
+  //   to: user.email,
+  //   subject: "Verify your RoleForge email",
+  //   html: verifyEmailTemplate(user.name, verifyUrl),
+  // });
 }
 export async function registerUserService(data: RegisterInput) {
   await connectToDatabase();
@@ -87,7 +91,6 @@ export async function registerUserService(data: RegisterInput) {
 
 export async function loginUserService(data: LoginInput) {
   const allowed = await rateLimit(`login:${data.email}`, 5, 600);
-
   if (!allowed) {
     throw new Error("Too many login attempts. Try again after 10 minutes.");
   }
@@ -119,15 +122,24 @@ export async function loginUserService(data: LoginInput) {
     ip: data.ip,
     userAgent: data.userAgent,
   });
-  await sendEmail({
-    to: user.email,
-    subject: "New login to your RoleForge account",
-    html: newLoginEmailTemplate({
-      name: user.name,
-      ip: data.ip,
-      userAgent: data.userAgent,
-    }),
-  });
+  await addEmailJob({
+  to: user.email,
+  subject: "New login to your RoleForge account",
+  html: newLoginEmailTemplate({
+    name: user.name,
+    ip: data.ip,
+    userAgent: data.userAgent,
+  }),
+});
+  // await sendEmail({
+  //   to: user.email,
+  //   subject: "New login to your RoleForge account",
+  //   html: newLoginEmailTemplate({
+  //     name: user.name,
+  //     ip: data.ip,
+  //     userAgent: data.userAgent,
+  //   }),
+  // });
   await createAuditLog({
     userId: user._id.toString(),
     action: AuditAction.LOGIN,
@@ -179,8 +191,8 @@ export async function forgotPasswordService(email: string) {
   await user.save();
 
   const resetUrl = `${process.env.APP_URL}/reset-password?token=${resetToken}`;
-
-  await sendEmail({
+  
+  await addEmailJob({
     to: user.email,
 
     subject: "Reset Your Password",
@@ -307,7 +319,7 @@ export async function googleLoginService(data: GoogleLoginInput) {
     ip: data.ip,
     userAgent: data.userAgent,
   });
-  await sendEmail({
+  await addEmailJob({
     to: user.email,
     subject: "New login to your RoleForge account",
     html: newLoginEmailTemplate({
@@ -382,7 +394,7 @@ export async function githubLoginService(
     ip: meta?.ip,
     userAgent: meta?.userAgent,
   });
-  await sendEmail({
+  await addEmailJob({
     to: user.email,
     subject: "New login to your RoleForge account",
     html: newLoginEmailTemplate({
@@ -431,7 +443,7 @@ export async function verifyEmailService(data: VerifyEmailInput) {
 
   await user.save();
 
-  await sendEmail({
+  await addEmailJob({
     to: user.email,
     subject: "Welcome to RoleForge Auth",
     html: welcomeEmailTemplate(user.name),
@@ -505,6 +517,7 @@ export async function getMySessionsService(userId: string) {
 
 import { deleteSessionById } from "@/lib/session";
 import { AuditAction, createAuditLog } from "@/lib/AuditLog";
+import { addEmailJob } from "@/lib/bullmq/queues/email.queue";
 
 export async function logoutSingleDeviceService(
   userId: string,

@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-
 import { verifyEmailController } from "@/features/auth/auth.controller";
+import { errorResponse, successResponse } from "@/lib/api-response";
 
 export async function POST(request: Request) {
   try {
@@ -8,24 +7,8 @@ export async function POST(request: Request) {
 
     const result = await verifyEmailController(body);
 
-    return NextResponse.json(
-      {
-        success: true,
-
-        ...result,
-      },
-      { status: 200 },
-    );
+    return successResponse(result);
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-
-        message: error.message || "Email verification failed",
-      },
-      {
-        status: 400,
-      },
-    );
+    return errorResponse(error);
   }
 }

@@ -1,21 +1,12 @@
-import { NextResponse } from "next/server";
 import { getMySessionsController } from "@/features/auth/auth.controller";
+import { errorResponse, successResponse } from "@/lib/api-response";
 
 export async function GET() {
   try {
     const result = await getMySessionsController();
 
-    return NextResponse.json({
-      success: true,
-      ...result,
-    });
+    return successResponse(result);
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: error.message || "Unable to fetch sessions",
-      },
-      { status: 401 }
-    );
+    return errorResponse(error);
   }
 }

@@ -1,38 +1,14 @@
-import { NextResponse } from "next/server";
+import { registerController } from "@/features/auth/auth.controller";
+import { errorResponse, successResponse } from "@/lib/api-response";
 
-import {
-  registerController,
-} from "@/features/auth/auth.controller";
-
-export async function POST(
-  request: Request
-) {
+export async function POST(request: Request) {
   try {
-    const body =
-      await request.json();
+    const body = await request.json();
 
-    const result =
-      await registerController(
-        body
-      );
+    const result = await registerController(body);
 
-    return NextResponse.json(
-      result,
-      {
-        status: 201,
-      }
-    );
+    return successResponse(result);
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        message:
-          error.message ||
-          "Something went wrong",
-      },
-      {
-        status: 400,
-      }
-    );
+    return errorResponse(error);
   }
 }

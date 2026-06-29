@@ -93,14 +93,29 @@ export async function createSession(
 
   return sessionId;
 }
-async function refreshSessionExpiry(userId: string, sessionId: string) {
-  const sessionKey = createSessionKey(sessionId);
-  const userSessionsKey = createUserSessionsKey(userId);
-
-  await redis.expire(sessionKey, SESSION_EXPIRES_IN_SECONDS);
-  await redis.expire(userSessionsKey, SESSION_EXPIRES_IN_SECONDS);
-
+export async function refreshCurrentSession() {
   const cookieStore = await cookies();
+
+  const sessionId = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+  if (!sessionId) {
+    return null;
+  }
+
+  const sessionData = await redis.get(createSessionKey(sessionId));
+
+  if (!sessionData) {
+    cookieStore.delete(SESSION_COOKIE_NAME);
+    return null;
+  }
+
+  const session = JSON.parse(sessionData) as RedisSessionPayload;
+
+  await redis.expire(createSessionKey(sessionId), SESSION_EXPIRES_IN_SECONDS);
+  await redis.expire(
+    createUserSessionsKey(session.userId),
+    SESSION_EXPIRES_IN_SECONDS
+  );
 
   cookieStore.set(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true,
@@ -109,6 +124,10 @@ async function refreshSessionExpiry(userId: string, sessionId: string) {
     path: "/",
     maxAge: SESSION_EXPIRES_IN_SECONDS,
   });
+
+  return {
+    refreshed: true,
+  };
 }
 
 /**
@@ -228,7 +247,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     return null;
   }
 
-await refreshSessionExpiry(session.userId, sessionId);
+// await refreshSessionExpiry(session.userId, sessionId);
 
 return {
   userId: user._id.toString(),

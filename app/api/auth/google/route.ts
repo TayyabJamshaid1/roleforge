@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { googleLoginController } from "@/features/auth/auth.controller";
+import { errorResponse, successResponse } from "@/lib/api-response";
 
 export async function POST(request: Request) {
   try {
@@ -16,20 +16,8 @@ export async function POST(request: Request) {
       userAgent,
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        ...result,
-      },
-      { status: 200 },
-    );
+    return successResponse(result);
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: error.message || "Google login failed",
-      },
-      { status: 400 },
-    );
+    return errorResponse(error);
   }
 }

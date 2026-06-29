@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-
 import { loginController } from "@/features/auth/auth.controller";
+import { errorResponse, successResponse } from "@/lib/api-response";
 
 export async function POST(request: Request) {
   try {
@@ -18,18 +17,8 @@ export async function POST(request: Request) {
       userAgent,
     });
 
-    return NextResponse.json({...result,success:true}, {
-      status: 200,
-    });
+    return successResponse(result);
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: error.message || "Something went wrong",
-      },
-      {
-        status: 400,
-      },
-    );
+    return errorResponse(error);
   }
 }

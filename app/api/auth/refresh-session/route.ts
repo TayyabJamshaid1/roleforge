@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/session";
+import { refreshCurrentSession } from "@/lib/session";
 import { errorResponse, successResponse } from "@/lib/api-response";
 
-export async function GET() {
+export async function POST() {
   try {
-    const user = await getCurrentUser();
+    const result = await refreshCurrentSession();
 
-    if (!user) {
+    if (!result) {
       return NextResponse.json(
         {
           success: false,
-          message: "Unauthorized",
+          message: "No active session",
         },
         { status: 401 },
       );
     }
 
-    return successResponse(user);
+    return successResponse({});
   } catch (error: any) {
     return errorResponse(error);
   }

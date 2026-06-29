@@ -18,6 +18,8 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   email: z.string().email("Invalid email address").toLowerCase(),
   password: z.string().min(1, "Password is required"),
+  ip: z.string().optional(),
+  userAgent: z.string().optional(),
 });
 export const forgotPasswordSchema = z.object({
   email: z.string().email("Invalid email address").toLowerCase(),

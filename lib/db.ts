@@ -7,7 +7,12 @@ const MONGODB_URL = process.env.MONGODB_URL;
 if (!MONGODB_URL) {
   throw new Error("Please define MONGODB_URL in .env.local");
 }
-
+export class DatabaseConnectionError extends Error {
+  constructor() {
+    super("Database connection failed");
+    this.name = "DatabaseConnectionError";
+  }
+}
 type MongooseCache = {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
@@ -46,9 +51,11 @@ export async function connectToDatabase() {
 
     cached.conn = await cached.promise;
     return cached.conn;
-  } catch (error: any) {
-    console.error("❌ MongoDB connection error:", error?.message);
-    cached.promise = null;
-    throw error;
-  }
+  }catch (error) {
+  console.error(error);
+
+  cached.promise = null;
+
+  throw new DatabaseConnectionError();
+}
 }

@@ -31,7 +31,6 @@ export async function registerController(body: unknown) {
 
 export async function loginController(body: unknown) {
   const validatedData = loginSchema.parse(body);
-
   const result = await loginUserService(validatedData);
 
   return result;
