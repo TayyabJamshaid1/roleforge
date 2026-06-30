@@ -10,15 +10,11 @@ const worker = new Worker(
   "email-queue",
   async (job) => {
     const { to, subject, html } = job.data;
-console.log(html,"html in mail send");
-
     await sendEmail({
       to,
       subject,
       html,
     });
-
-    console.log("Email sent:", to);
   },
   {
     connection: bullmqConnection,
