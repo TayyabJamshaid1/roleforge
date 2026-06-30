@@ -1,7 +1,8 @@
 "use client";
 
-import { GravityStarsBackground } from '@/components/animate-ui/components/backgrounds/gravity-stars';
+import { GravityStarsBackground } from "@/components/animate-ui/components/backgrounds/gravity-stars";
 import { motion } from "motion/react";
+import Image from "next/image";
 
 type AuthShellProps = {
   title: string;
@@ -25,7 +26,15 @@ export default function AuthShell({
           transition={{ duration: 0.45 }}
           className="w-full max-w-md rounded-3xl border border-white/10 bg-black/40 p-6 shadow-2xl backdrop-blur-xl"
         >
-          <div className="mb-6 text-center">
+          <div className="mb-6 text-center flex flex-col items-center justify-center">
+            <Image
+              src="/logoo.png"
+              alt="Employers Dashboard Logo"
+              width={150}
+              height={60}
+              className="h-auto w-auto" // Makes white logo if your logo is dark
+              priority
+            />
             <h1 className="text-3xl font-bold">{title}</h1>
             <p className="mt-2 text-sm text-white/70">{subtitle}</p>
           </div>
