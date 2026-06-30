@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { log } from "console";
+import { notify } from "@/lib/toast";
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -30,11 +31,11 @@ export default function VerifyEmailPage() {
 
       const data = await response.json();
       if (data.success) {
-        alert("Email Verified Successfully");
+        notify.success("Email Verified Successfully");
 
         router.replace("/login");
       } else {
-        alert(data.message);
+        notify.error(data.message);
       }
     };
 

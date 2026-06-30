@@ -1,4 +1,5 @@
 "use client";
+import { notify } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 import React from "react";
 
@@ -18,7 +19,7 @@ const page = () => {
     const data = await res.json();
 
     if (!res.ok || !data.success) {
-      alert(data.message || "Logout failed");
+       notify.error(data.message || "Logout failed");
       return;
     }
 
