@@ -3,7 +3,7 @@
 import crypto from "crypto";
 import { cookies,headers } from "next/headers";
 import { redis } from "@/lib/redis";
-import { connectToDatabase } from "@/lib/db";
+import { connectToDatabase, DatabaseConnectionError } from "@/lib/db";
 import User from "@/models/User";
 import { isSuspiciousActivity } from "./secuirity";
 
@@ -19,12 +19,6 @@ const SESSION_EXPIRES_IN_SECONDS = Number(
  * Final authenticated user.
  * Returned from MongoDB.
  */
-export type AuthUser = {
-  userId: string;
-  name: string;
-  email: string;
-  role: "user" | "manager" | "admin";
-};
 
 export type RedisSessionPayload = {
   userId: string;
@@ -144,119 +138,98 @@ export async function refreshCurrentSession() {
  */
 
 
-export async function getCurrentUser(): Promise<AuthUser | null> {
-  /**
-   * Read cookie from browser.
-   *
-   * Example:
-   * roleforge_session=abc123
-   */
-  const cookieStore = await cookies();
-
-  const sessionId = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-
-  if (!sessionId) {
-    return null;
-  }
-
-  /**
-   * Get session from Redis.
-   *
-   * session:abc123
-   */
-  const sessionData = await redis.get(createSessionKey(sessionId));
-
-  if (!sessionData) {
-    return null;
-  }
-
-  /**
-   * Convert Redis JSON string
-   * into object.
-   */
-  const session = JSON.parse(sessionData) as RedisSessionPayload;
-
-  /**
-   * Get current request headers
-   * for suspicious activity check.
-   */
-  const headerStore = await headers();
-  const currentUserAgent = headerStore.get("user-agent") || "unknown";
-
-  /**
-   * Compare current device
-   * with stored device.
-   *
-   * If suspicious:
-   * delete session immediately.
-   */
-  const suspicious = isSuspiciousActivity({
-    currentUserAgent
-  });
-
-  if (suspicious) {
-    /**
-     * Delete Redis session.
-     */
-    await redis.del(createSessionKey(sessionId));
-
-    /**
-     * Remove sessionId from:
-     *
-     * user_sessions:userId
-     */
-    await redis.srem(createUserSessionsKey(session.userId), sessionId);
-
-    /**
-     * Delete browser cookie.
-     */
-    cookieStore.delete(SESSION_COOKIE_NAME);
-
-    return null;
-  }
-
-  /**
-   * Get fresh user
-   * from MongoDB.
-   */
-  await connectToDatabase();
-
-  const user = await User.findById(session.userId);
-
-  if (!user) {
-    return null;
-  }
-
-  /**
-   * Important Security Check
-   *
-   * If password reset
-   * or logout all devices happened,
-   * sessionVersion changes.
-   *
-   * Old sessions become invalid.
-   */
-  if (user.sessionVersion !== session.sessionVersion) {
-    return null;
-  }
-
-  /**
-   * User account blocked?
-   */
-  if (!user.isActive) {
-    return null;
-  }
-
-// await refreshSessionExpiry(session.userId, sessionId);
-
-return {
-  userId: user._id.toString(),
-  name: user.name,
-  email: user.email,
-  role: user.role,
+export type AuthUser = {
+  userId: string;
+  name: string;
+  email: string;
+  role: "user" | "manager" | "admin";
 };
-}
 
+export type GetCurrentUserResult =
+  | { status: "authenticated"; user: AuthUser }
+  | { status: "unauthenticated" }
+  | { status: "service_unavailable" }
+  | { status: "error"; message: string };
+
+export async function getCurrentUser(): Promise<GetCurrentUserResult> {
+  try {
+    const cookieStore = await cookies();
+
+    const sessionId = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+    if (!sessionId) {
+      return { status: "unauthenticated" };
+    }
+
+    const sessionData = await redis.get(createSessionKey(sessionId));
+
+    if (!sessionData) {
+      return { status: "unauthenticated" };
+    }
+
+    const session = JSON.parse(sessionData) as RedisSessionPayload;
+
+    const headerStore = await headers();
+    const currentUserAgent = headerStore.get("user-agent") || "unknown";
+
+    const suspicious = isSuspiciousActivity({
+      currentUserAgent,
+    });
+
+    if (suspicious) {
+      await redis.del(createSessionKey(sessionId));
+      await redis.srem(createUserSessionsKey(session.userId), sessionId);
+
+      return { status: "unauthenticated" };
+    }
+
+    try {
+      await connectToDatabase();
+    } catch (error) {
+      console.error("getCurrentUser DB error:", error);
+
+      if (error instanceof DatabaseConnectionError) {
+        return { status: "service_unavailable" };
+      }
+
+      return {
+        status: "error",
+        message: "Something went wrong",
+      };
+    }
+
+    const user = await User.findById(session.userId);
+
+    if (!user) {
+      return { status: "unauthenticated" };
+    }
+
+    if (user.sessionVersion !== session.sessionVersion) {
+      return { status: "unauthenticated" };
+    }
+
+    if (!user.isActive) {
+      return { status: "unauthenticated" };
+    }
+
+    return {
+      status: "authenticated",
+      user: {
+        userId: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    };
+  } catch (error: any) {
+    console.error("getCurrentUser error:", error);
+
+    return {
+      status: "error",
+      message: error.message || "Something went wrong",
+    };
+  }
+}
 /**
  * Logout current device.
  */

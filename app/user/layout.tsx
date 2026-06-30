@@ -7,17 +7,24 @@ export default async function UserLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const auth = await getCurrentUser();
 
-  if (!user) {
-    redirect("/login");
+  switch (auth.status) {
+    case "unauthenticated":
+      redirect("/login");
+
+    case "service_unavailable":
+      redirect("/service-unavailable");
+
+    case "error":
+      redirect(`/error?message=${encodeURIComponent(auth.message)}`);
+
+    case "authenticated":
+      return (
+        <>
+          <SessionRefresher />
+          {children}
+        </>
+      );
   }
-
-  return (
-    <>
-      {" "}
-      <SessionRefresher />
-      {children}
-    </>
-  );
 }

@@ -7,21 +7,28 @@ export default async function ManagerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const auth = await getCurrentUser();
 
-  if (!user) {
-    redirect("/login");
+  switch (auth.status) {
+    case "unauthenticated":
+      redirect("/login");
+
+    case "service_unavailable":
+      redirect("/service-unavailable");
+
+    case "error":
+      redirect(`/error?message=${encodeURIComponent(auth.message)}`);
+
+    case "authenticated":
+      if (auth.user.role !== "manager" && auth.user.role !== "admin") {
+        redirect("/unauthorized");
+      }
+
+      return (
+        <>
+          <SessionRefresher />
+          {children}
+        </>
+      );
   }
-
-  if (user.role !== "manager" && user.role !== "admin") {
-    redirect("/unauthorized");
-  }
-
-  return (
-    <>
-      {" "}
-      <SessionRefresher />
-      {children}
-    </>
-  );
 }
