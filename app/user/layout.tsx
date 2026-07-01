@@ -19,12 +19,16 @@ export default async function UserLayout({
     case "error":
       redirect(`/error?message=${encodeURIComponent(auth.message)}`);
 
-    case "authenticated":
-      return (
-        <>
-          <SessionRefresher />
-          {children}
-        </>
-      );
+     case "authenticated":
+         if (auth.user.role !== "user" && auth.user.role !== "admin") {
+           redirect("/unauthorized");
+         }
+   
+         return (
+           <>
+             <SessionRefresher />
+             {children}
+           </>
+         );
   }
 }

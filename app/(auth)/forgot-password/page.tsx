@@ -30,14 +30,18 @@ export default function ForgotPasswordPage() {
         }}
         className="space-y-4"
       >
+             <div className="space-y-2">
+  <label className="text-sm font-medium text-zinc-300">
+    Email Address
+  </label>
         <input
-          className="w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-white outline-none placeholder:text-slate-400 focus:border-indigo-400"
+          className="mt-2 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-white outline-none placeholder:text-slate-400 focus:border-indigo-400"
           type="email"
-          placeholder="Email address"
+          placeholder="enter your email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-
+</div>
         <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 font-semibold hover:bg-indigo-600">
           {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
           Send Reset Link

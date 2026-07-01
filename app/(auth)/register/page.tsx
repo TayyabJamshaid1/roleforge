@@ -36,14 +36,19 @@ export default function RegisterPage() {
         className="space-y-4"
       >
         {["name", "email", "password"].map((field) => (
+          <div className="space-y-2">
+  <label className="text-sm font-medium text-zinc-300">
+    {field.charAt(0).toUpperCase() + field.slice(1)}
+  </label>
           <input
             key={field}
-            className="w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-white outline-none placeholder:text-slate-400 focus:border-indigo-400"
+            className="mt-2 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-white outline-none placeholder:text-slate-400 focus:border-indigo-400"
             type={field === "password" ? "password" : field === "email" ? "email" : "text"}
-            placeholder={field}
+            placeholder={`enter your ${field}`}
             value={(form as any)[field]}
             onChange={(e) => setForm({ ...form, [field]: e.target.value })}
           />
+          </div>
         ))}
 
         <select

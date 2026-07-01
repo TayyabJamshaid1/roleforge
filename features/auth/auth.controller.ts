@@ -71,31 +71,31 @@ export async function resendVerificationEmailController(body: unknown) {
   return await resendVerificationEmailService(validatedData.email);
 }
 export async function logoutAllDevicesController() {
-  const authUser = await getCurrentUser();
+  const auth = await getCurrentUser();
 
-  if (!authUser) {
+  if (auth.status !== "authenticated") {
     throw new Error("Unauthorized");
   }
 
-  return await logoutAllDevicesService(authUser.userId);
+  return await logoutAllDevicesService(auth.user.userId);
 }
-
 
 export async function getMySessionsController() {
-  const user = await getCurrentUser();
+  const auth = await getCurrentUser();
 
-  if (!user) {
+  if (auth.status !== "authenticated") {
     throw new Error("Unauthorized");
   }
 
-  return await getMySessionsService(user.userId);
+  return await getMySessionsService(auth.user.userId);
 }
-export async function logoutSingleDeviceController(sessionId: string) {
-  const user = await getCurrentUser();
 
-  if (!user) {
+export async function logoutSingleDeviceController(sessionId: string) {
+  const auth = await getCurrentUser();
+
+  if (auth.status !== "authenticated") {
     throw new Error("Unauthorized");
   }
 
-  return await logoutSingleDeviceService(user.userId, sessionId);
+  return await logoutSingleDeviceService(auth.user.userId, sessionId);
 }
