@@ -7,7 +7,9 @@ import {
 import { comparePassword, hashPassword } from "@/lib/password";
 import User from "@/models/User";
 import { generateResetToken, hashToken } from "@/lib/token";
-import { sendEmail } from "@/lib/email";
+import { deleteSessionById } from "@/lib/session";
+import { AuditAction, createAuditLog } from "@/lib/AuditLog";
+import { addEmailJob } from "@/lib/bullmq/queues/email.queue";
 import {
   newLoginEmailTemplate,
   verifyEmailTemplate,
@@ -515,9 +517,7 @@ export async function getMySessionsService(userId: string) {
   };
 }
 
-import { deleteSessionById } from "@/lib/session";
-import { AuditAction, createAuditLog } from "@/lib/AuditLog";
-import { addEmailJob } from "@/lib/bullmq/queues/email.queue";
+
 
 export async function logoutSingleDeviceService(
   userId: string,

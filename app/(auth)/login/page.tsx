@@ -116,7 +116,6 @@ export default function LoginPage() {
               googleMutation.mutate(res.credential);
             }}
             onError={() => notify.error("Google login failed")}
-            disabled={isLoading}
           />
         </div>
 

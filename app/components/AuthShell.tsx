@@ -24,20 +24,20 @@ export default function AuthShell({
           initial={{ opacity: 0, y: 24, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.45 }}
-          className="w-full max-w-md rounded-3xl border border-white/10 bg-black/45 p-7 shadow-2xl backdrop-blur-xl"
+          className="w-full max-w-md rounded-3xl border border-white/10 bg-black/45 p-7 pt-0 shadow-2xl backdrop-blur-xl"
         >
-          <div className="mb-7 flex flex-col items-center text-center">
+          <div className="mb-5 flex flex-col items-center text-center">
             <Image
               src="/logoo.png"
               alt="RoleForge Logo"
               width={170}
               height={70}
-              className="mb-5 h-auto w-auto"
+              className=" h-auto w-auto"
               priority
             />
 
-<h1 className="text-3xl font-semibold tracking-tight text-white">
-                {title}
+            <h1 className="text-3xl font-semibold tracking-tight text-white">
+              {title}
             </h1>
 
             <p className="mt-2 max-w-sm leading-6 text-zinc-500 text-[17px]">
