@@ -18,7 +18,9 @@ import {
   resendVerificationEmailService,
   logoutAllDevicesService,
   getMySessionsService,
-  logoutSingleDeviceService
+  logoutSingleDeviceService,
+  getAllUsersService,
+  forceLogoutUserService
 } from "./auth.service";
 
 export async function registerController(body: unknown) {
@@ -98,4 +100,35 @@ export async function logoutSingleDeviceController(sessionId: string) {
   }
 
   return await logoutSingleDeviceService(auth.user.userId, sessionId);
+}
+export async function getAllUsersController() {
+  const auth = await getCurrentUser();
+
+  if (
+    auth.status !== "authenticated" ||
+    auth.user.role !== "admin"
+  ) {
+    throw new Error("Unauthorized");
+  }
+
+  const users = await getAllUsersService();
+
+  return {
+    users,
+  };
+}
+
+export async function forceLogoutUserController(
+  userId: string
+) {
+  const auth = await getCurrentUser();
+
+  if (
+    auth.status !== "authenticated" ||
+    auth.user.role !== "admin"
+  ) {
+    throw new Error("Unauthorized");
+  }
+
+  return await forceLogoutUserService(userId);
 }

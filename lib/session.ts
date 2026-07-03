@@ -29,11 +29,11 @@ export type RedisSessionPayload = {
   userAgent?: string;
 };
 
-function createSessionKey(sessionId: string) {
+export function createSessionKey(sessionId: string) {
   return `session:${sessionId}`;
 }
 
-function createUserSessionsKey(userId: string) {
+export function createUserSessionsKey(userId: string) {
   return `user_sessions:${userId}`;
 }
 

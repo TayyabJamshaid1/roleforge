@@ -1,8 +1,12 @@
-import { connectToDatabase } from "@/lib/db";
+import { connectToDatabase} from "@/lib/db";
+import { redis } from "@/lib/redis";
+
 import {
   createSession,
   deleteAllUserSessions,
   getUserSessions,
+  createUserSessionsKey,
+  createSessionKey,
 } from "@/lib/session";
 import { comparePassword, hashPassword } from "@/lib/password";
 import User from "@/models/User";
@@ -53,6 +57,17 @@ await addEmailJob({
   //   subject: "Verify your RoleForge email",
   //   html: verifyEmailTemplate(user.name, verifyUrl),
   // });
+}
+export async function getAllUsersRepository() {
+  return await User.find({})
+    .select(
+      "-password -verificationToken -resetPasswordToken -resetPasswordExpires"
+    )
+    .sort({ createdAt: -1 })
+    .lean();
+}
+export async function findUserByIdRepository(userId: string) {
+  return await User.findById(userId);
 }
 export async function registerUserService(data: RegisterInput) {
   await connectToDatabase();
@@ -530,5 +545,40 @@ export async function logoutSingleDeviceService(
   });
   return {
     message: "Device logged out successfully",
+  };
+}
+export async function getAllUsersService() {
+  await connectToDatabase();
+
+  return await getAllUsersRepository();
+}
+
+export async function forceLogoutUserService(userId: string) {
+  await connectToDatabase();
+
+  const user = await findUserByIdRepository(userId);
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const sessionIds = await redis.smembers(
+    createUserSessionsKey(userId)
+  );
+
+  await Promise.all(
+    sessionIds.map((sessionId) =>
+      redis.del(createSessionKey(sessionId))
+    )
+  );
+
+  await redis.del(createUserSessionsKey(userId));
+
+  user.sessionVersion += 1;
+
+  await user.save();
+
+  return {
+    message: "User logged out from all devices",
   };
 }
