@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { refreshCurrentSession } from "@/lib/session";
+import { refreshSessionExpiry } from "@/lib/session";
 import { errorResponse, successResponse } from "@/lib/api-response";
 
 export async function POST() {
   try {
-    const result = await refreshCurrentSession();
+    const result = await refreshSessionExpiry();
 
     if (!result) {
       return NextResponse.json(

@@ -335,6 +335,7 @@ export async function googleLoginService(data: GoogleLoginInput) {
     sessionVersion: user.sessionVersion,
     ip: data.ip,
     userAgent: data.userAgent,
+    
   });
   await addEmailJob({
     to: user.email,
@@ -525,11 +526,7 @@ export async function logoutAllDevicesService(userId: string) {
 }
 
 export async function getMySessionsService(userId: string) {
-  const sessions = await getUserSessions(userId);
-
-  return {
-    sessions,
-  };
+  return await getUserSessions(userId);
 }
 
 

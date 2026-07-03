@@ -23,8 +23,10 @@ const SESSION_EXPIRES_IN_SECONDS = Number(
 export type RedisSessionPayload = {
   userId: string;
   sessionVersion: number;
-  createdAt?: string;
-  // Optional security information
+
+  createdAt: string;
+  lastSeenAt: string;
+
   ip?: string;
   userAgent?: string;
 };
@@ -52,13 +54,16 @@ export function generateSessionId() {
  * - github login
  */
 export async function createSession(
-  payload: Omit<RedisSessionPayload, "createdAt">,
-) {
+payload: Omit<
+  RedisSessionPayload,
+  "createdAt" | "lastSeenAt"
+>) {
   const sessionId = generateSessionId();
 
   const sessionData: RedisSessionPayload = {
     ...payload,
     createdAt: new Date().toISOString(),
+lastSeenAt: new Date().toISOString()
   };
 
   await redis.set(
@@ -87,7 +92,7 @@ export async function createSession(
 
   return sessionId;
 }
-export async function refreshCurrentSession() {
+export async function refreshSessionExpiry() {
   const cookieStore = await cookies();
 
   const sessionId = cookieStore.get(SESSION_COOKIE_NAME)?.value;
@@ -105,12 +110,19 @@ export async function refreshCurrentSession() {
 
   const session = JSON.parse(sessionData) as RedisSessionPayload;
 
-  await redis.expire(createSessionKey(sessionId), SESSION_EXPIRES_IN_SECONDS);
-  await redis.expire(
-    createUserSessionsKey(session.userId),
-    SESSION_EXPIRES_IN_SECONDS
-  );
+session.lastSeenAt = new Date().toISOString();
 
+await redis.set(
+  createSessionKey(sessionId),
+  JSON.stringify(session),
+  "EX",
+  SESSION_EXPIRES_IN_SECONDS
+);
+
+await redis.expire(
+  createUserSessionsKey(session.userId),
+  SESSION_EXPIRES_IN_SECONDS
+);
   cookieStore.set(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -289,9 +301,7 @@ export async function invalidateAllUserSessions(userId: string) {
 }
 //This lets a user see active sessions and later logout a single device.
 export async function getUserSessions(userId: string) {
-  const userSessionsKey = createUserSessionsKey(userId);
-
-  const sessionIds = await redis.smembers(userSessionsKey);
+  const sessionIds = await redis.smembers(createUserSessionsKey(userId));
 
   const sessions = await Promise.all(
     sessionIds.map(async (sessionId) => {
@@ -299,9 +309,14 @@ export async function getUserSessions(userId: string) {
 
       if (!sessionData) return null;
 
+      const session = JSON.parse(sessionData) as RedisSessionPayload;
+
       return {
         sessionId,
-        ...JSON.parse(sessionData),
+        ip: session.ip,
+        userAgent: session.userAgent,
+        createdAt: session.createdAt,
+        lastSeenAt: session.lastSeenAt,
       };
     })
   );

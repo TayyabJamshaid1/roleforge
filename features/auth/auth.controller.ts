@@ -85,21 +85,39 @@ export async function logoutAllDevicesController() {
 export async function getMySessionsController() {
   const auth = await getCurrentUser();
 
-  if (auth.status !== "authenticated") {
-    throw new Error("Unauthorized");
+  switch (auth.status) {
+    case "unauthenticated":
+      throw new Error("Unauthorized");
+
+    case "service_unavailable":
+      throw new Error("Database is temporarily unavailable");
+
+    case "error":
+      throw new Error(auth.message);
+
+    case "authenticated":
+      return await getMySessionsService(auth.user.userId);
   }
-
-  return await getMySessionsService(auth.user.userId);
 }
-
 export async function logoutSingleDeviceController(sessionId: string) {
   const auth = await getCurrentUser();
 
-  if (auth.status !== "authenticated") {
-    throw new Error("Unauthorized");
-  }
+  switch (auth.status) {
+    case "unauthenticated":
+      throw new Error("Unauthorized");
 
-  return await logoutSingleDeviceService(auth.user.userId, sessionId);
+    case "service_unavailable":
+      throw new Error("Database temporarily unavailable");
+
+    case "error":
+      throw new Error(auth.message);
+
+    case "authenticated":
+      return await logoutSingleDeviceService(
+        auth.user.userId,
+        sessionId
+      );
+  }
 }
 export async function getAllUsersController() {
   const auth = await getCurrentUser();
