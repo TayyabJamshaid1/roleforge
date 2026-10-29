@@ -6,9 +6,11 @@ import { notify } from "@/lib/toast";
 import { useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function RegisterPage() {
+  const redirect=useRouter();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -22,7 +24,10 @@ export default function RegisterPage() {
         method: "POST",
         body: JSON.stringify(form),
       }),
-    onSuccess: (data) => notify.success(data.message),
+    onSuccess: (data) => {
+      notify.success(data.message);
+      redirect.push("/login");
+    },
     onError: (error) => notify.error(error.message),
   });
 
