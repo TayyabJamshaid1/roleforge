@@ -48,12 +48,14 @@ async function createAndSendVerificationEmail(user: any) {
   await user.save();
   const verifyUrl = `${process.env.APP_URL}/verify-email?token=${rawToken}`;
 await addEmailJob({
-  to: user.email,
+  //to: user.email,
+   to: "tayyabjamshaid78@gmail.com",
     subject: "Verify your RoleForge email",
     html: verifyEmailTemplate(user.name, verifyUrl),
 });
   // await sendEmail({
-  //   to: user.email,
+  //   // to: user.email,
+  //       to: "tayyabjamshaid78@gmail.com",
   //   subject: "Verify your RoleForge email",
   //   html: verifyEmailTemplate(user.name, verifyUrl),
   // });
@@ -140,7 +142,8 @@ export async function loginUserService(data: LoginInput) {
     userAgent: data.userAgent,
   });
   await addEmailJob({
-  to: user.email,
+  // to: user.email,
+        to: "tayyabjamshaid78@gmail.com",
   subject: "New login to your RoleForge account",
   html: newLoginEmailTemplate({
     name: user.name,
@@ -210,7 +213,7 @@ export async function forgotPasswordService(email: string) {
   const resetUrl = `${process.env.APP_URL}/reset-password?token=${resetToken}`;
   
   await addEmailJob({
-    to: user.email,
+    to: "tayyabjamshaid78@gmail.com",
 
     subject: "Reset Your Password",
 
@@ -338,7 +341,8 @@ export async function googleLoginService(data: GoogleLoginInput) {
     
   });
   await addEmailJob({
-    to: user.email,
+  // to: user.email,
+        to: "tayyabjamshaid78@gmail.com",
     subject: "New login to your RoleForge account",
     html: newLoginEmailTemplate({
       name: user.name,
@@ -413,7 +417,8 @@ export async function githubLoginService(
     userAgent: meta?.userAgent,
   });
   await addEmailJob({
-    to: user.email,
+  // to: user.email,
+        to: "tayyabjamshaid78@gmail.com",
     subject: "New login to your RoleForge account",
     html: newLoginEmailTemplate({
       name: user.name,
@@ -462,7 +467,8 @@ export async function verifyEmailService(data: VerifyEmailInput) {
   await user.save();
 
   await addEmailJob({
-    to: user.email,
+    // to: user.email,
+        to: "tayyabjamshaid78@gmail.com",
     subject: "Welcome to RoleForge Auth",
     html: welcomeEmailTemplate(user.name),
   });
