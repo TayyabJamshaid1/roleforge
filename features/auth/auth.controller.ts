@@ -22,21 +22,36 @@ import {
   getAllUsersService,
   forceLogoutUserService
 } from "./auth.service";
+import { ZodError } from "zod";
 
 export async function registerController(body: unknown) {
-  const validatedData = registerSchema.parse(body);
+  try {
+    const validatedData = registerSchema.parse(body);
 
-  const result = await registerUserService(validatedData);
+    return await registerUserService(validatedData);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      throw new Error(error.issues.map((issue) => issue.message).join(", "));
+    }
 
-  return result;
+    throw error;
+  }
 }
 
 export async function loginController(body: unknown) {
-  const validatedData = loginSchema.parse(body);
-  const result = await loginUserService(validatedData);
+  try {
+    const validatedData = loginSchema.parse(body);
 
-  return result;
+    return await loginUserService(validatedData);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      throw new Error(error.issues.map((issue) => issue.message).join(", "));
+    }
+
+    throw error;
+  }
 }
+
 export async function logoutController() {
   await deleteCurrentSession();
 
@@ -45,16 +60,33 @@ export async function logoutController() {
   };
 }
 
-export async function forgotPasswordController(body: unknown) {
-  const validatedData = forgotPasswordSchema.parse(body);
-
-  return await forgotPasswordService(validatedData.email);
-}
 
 export async function resetPasswordController(body: unknown) {
-  const validatedData = resetPasswordSchema.parse(body);
+  try {
+    const validatedData = resetPasswordSchema.parse(body);
 
   return await resetPasswordService(validatedData);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      throw new Error(error.issues.map((issue) => issue.message).join(", "));
+    }
+
+    throw error;
+  }
+}
+
+export async function forgotPasswordController(body: unknown) {
+  try {
+     const validatedData = forgotPasswordSchema.parse(body);
+
+  return await forgotPasswordService(validatedData.email);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      throw new Error(error.issues.map((issue) => issue.message).join(", "));
+    }
+
+    throw error;
+  }
 }
 
 export async function googleLoginController(body: unknown) {
